@@ -6,7 +6,7 @@ variable region {
     default = "us-west1"
 }
 resource "google_container_cluster" "primary" {
-  name     = "awsdemo-gke-cluster"
+  name     = "awseks-1-gke-cluster"
   location = "${var.region}"
   provider =  "google.gke"
   # We can't create a cluster with no node pool defined, but we want to only use
@@ -26,7 +26,7 @@ resource "google_container_cluster" "primary" {
 }
 
 resource "google_container_node_pool" "primary_preemptible_nodes" {
-  name       = "awsdemo-node-pool"
+  name       = "awseks1-node-pool"
   location   = "${var.region}"
   cluster    = "${google_container_cluster.primary.name}"
   provider =  "google.gke"
@@ -55,10 +55,10 @@ clusters:
     insecure-skip-tls-verify: true
     server: https://${google_container_cluster.primary.endpoint}
     certificate-authority-data: ${google_container_cluster.primary.master_auth.0.client_certificate}
-  name: awsdemo-gke
+  name: awseks-1-gke
 kind: Config
 current-context: gke-cluster
-contexts: [{name: gke-cluster, context: {cluster: awsdemo-gke, user: user-1}}]
+contexts: [{name: gke-cluster, context: {cluster: awseks-1-gke, user: user-1}}]
 users: [{name: user-1, user: {auth-provider: {name: gcp}}}]
 KUBECONFIG
 }

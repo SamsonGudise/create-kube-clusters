@@ -1,3 +1,3 @@
 # s3 terraform state variables
-bucket = "tekgs-terraform-state"
-dynamodb_table = "terraform-state"
+bucket = "uswest2.ops.stem.com"
+# dynamodb_table = "terraform-state"

@@ -1,4 +1,3 @@
 provider aws {
-    alias  = "eks"
-    region = "${var.region}"
+    region = var.region
 }

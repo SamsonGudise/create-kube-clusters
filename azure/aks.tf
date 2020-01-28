@@ -14,15 +14,15 @@ variable subscription_id {
   default = "3227e46c-57ec-4e2c-8ba4-760eb7d70906"
 }
 
-resource "azurerm_resource_group" "awsdemo" {
+resource "azurerm_resource_group" "awseks-1" {
   provider = "azurerm.aks"
-  name     = "awsdemoRG1"
+  name     = "awseks-1RG1"
   location = "East US"
 }
 
-resource "azuread_application" "awsdemo" {
+resource "azuread_application" "awseks-1" {
   provider                   = "azuread.aks"
-  name                       = "awsdemo-app"
+  name                       = "awseks-1-app"
   homepage                   = "${var.domain}"
   identifier_uris            = ["${var.domain}"]
   reply_urls                 = ["${var.domain}"]
@@ -30,24 +30,24 @@ resource "azuread_application" "awsdemo" {
   oauth2_allow_implicit_flow = true
 }
 
-resource "azuread_service_principal" "awsdemo" {
+resource "azuread_service_principal" "awseks-1" {
   provider                   = "azuread.aks"
-  application_id = "${azuread_application.awsdemo.application_id}"
+  application_id = "${azuread_application.awseks-1.application_id}"
 }
 
-resource "azuread_service_principal_password" "awsdemo" {
+resource "azuread_service_principal_password" "awseks-1" {
   provider                   = "azuread.aks"
-  service_principal_id = "${azuread_service_principal.awsdemo.id}"
+  service_principal_id = "${azuread_service_principal.awseks-1.id}"
   value                = "${var.initialpassword}"
   end_date             = "2020-01-01T01:02:03Z"
 }
 
-resource "azurerm_kubernetes_cluster" "awsdemo" {
+resource "azurerm_kubernetes_cluster" "awseks-1" {
   provider = "azurerm.aks"
-  name                = "awsdemoaks1"
-  location            = "${azurerm_resource_group.awsdemo.location}"
-  resource_group_name = "${azurerm_resource_group.awsdemo.name}"
-  dns_prefix          = "awsdemoagent1"
+  name                = "awseks-1aks1"
+  location            = "${azurerm_resource_group.awseks-1.location}"
+  resource_group_name = "${azurerm_resource_group.awseks-1.name}"
+  dns_prefix          = "awseks-1agent1"
 
   agent_pool_profile {
     name            = "default"
@@ -66,15 +66,15 @@ resource "azurerm_kubernetes_cluster" "awsdemo" {
   }
 
   service_principal {
-    client_id     = "${azuread_application.awsdemo.application_id}"
-    client_secret = "${azuread_service_principal_password.awsdemo.value}"
+    client_id     = "${azuread_application.awseks-1.application_id}"
+    client_secret = "${azuread_service_principal_password.awseks-1.value}"
   }
 
   tags = {
-    Environment = "Demo"
+    Environment = "eks-1"
   }
 }
 
 output "kubeconfig" {
-  value = "${azurerm_kubernetes_cluster.awsdemo.kube_config_raw}"
+  value = "${azurerm_kubernetes_cluster.awseks-1.kube_config_raw}"
 }

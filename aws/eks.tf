@@ -1,39 +1,35 @@
 variable cluster_name {}
 variable region {
-    default = "us-east-1"
+    default = "us-west-2"
 }
 variable vpc_id {}
 variable key_name {}
 data "aws_vpc" "selected" {
-  provider = "aws.eks"
   id = "${var.vpc_id}"
 }
 
 data "aws_subnet_ids" "private" {
-  provider = "aws.eks"
-  vpc_id = "${var.vpc_id}"
+  vpc_id = var.vpc_id
 
   tags = {
-    SubnetType = "Private"
+    SubnetTier = "Private"
   }
 }
 
 resource "aws_security_group_rule" "eks-sg-ingress-cluster" {
-  provider = "aws.eks"
   description              = "Allow worker Kubelets and pods to receive communication from the cluster control plane"
   from_port                = 0
   protocol                 = "tcp"
-  security_group_id        = "${aws_security_group.eks-sg.id}"
-  source_security_group_id = "${aws_security_group.demo-node.id}"
+  security_group_id        = aws_security_group.eks-sg.id
+  source_security_group_id = aws_security_group.eks1-node.id
   to_port                  = 65535
   type                     = "ingress"
 }
 
 resource "aws_security_group" "eks-sg" {
-  provider = "aws.eks"
   name        = "terraform-eks-cluster"
   description = "Security group for cluster"
-  vpc_id = "${var.vpc_id}"
+  vpc_id = var.vpc_id
 
   egress {
     from_port   = 0
@@ -42,17 +38,14 @@ resource "aws_security_group" "eks-sg" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  tags = "${
-    map(
+  tags = map(
      "Name", "terraform-eks-cluster",
      "kubernetes.io/cluster/${var.cluster_name}", "owned",
     )
-  }"
 }
 
-resource "aws_iam_role" "demo-cluster" {
-  provider = "aws.eks"
-  name = "terraform-eks-demo-cluster"
+resource "aws_iam_role" "eks-1-cluster" {
+  name = "terraform-eks-eks-1-cluster"
 
   assume_role_policy = <<POLICY
 {
@@ -70,25 +63,22 @@ resource "aws_iam_role" "demo-cluster" {
 POLICY
 }
 
-resource "aws_iam_role_policy_attachment" "demo-cluster-AmazonEKSClusterPolicy" {
-  provider = "aws.eks"
+resource "aws_iam_role_policy_attachment" "eks-1-cluster-AmazonEKSClusterPolicy" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonEKSClusterPolicy"
-  role       = "${aws_iam_role.demo-cluster.name}"
+  role       = aws_iam_role.eks-1-cluster.name
 }
 
-resource "aws_iam_role_policy_attachment" "demo-cluster-AmazonEKSServicePolicy" {
-  provider = "aws.eks"
+resource "aws_iam_role_policy_attachment" "eks-1-cluster-AmazonEKSServicePolicy" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonEKSServicePolicy"
-  role       = "${aws_iam_role.demo-cluster.name}"
+  role       = aws_iam_role.eks-1-cluster.name
 }
 
-resource "aws_eks_cluster" "awsdemo" {
-  provider = "aws.eks"
-  name     = "${var.cluster_name}"
-  role_arn       = "${aws_iam_role.demo-cluster.arn}"
-
+resource "aws_eks_cluster" "awseks-1" {
+  name     = var.cluster_name
+  role_arn       = aws_iam_role.eks-1-cluster.arn
+  version   = "1.14"
   vpc_config {
-    subnet_ids = ["${data.aws_subnet_ids.private.ids}"]
+    subnet_ids = data.aws_subnet_ids.private.ids
     security_group_ids = ["${aws_security_group.eks-sg.id}"]
   }
 }
@@ -101,8 +91,8 @@ locals {
 apiVersion: v1
 clusters:
 - cluster:
-    server: ${aws_eks_cluster.awsdemo.endpoint}
-    certificate-authority-data: ${aws_eks_cluster.awsdemo.certificate_authority.0.data}
+    server: ${aws_eks_cluster.awseks-1.endpoint}
+    certificate-authority-data: ${aws_eks_cluster.awseks-1.certificate_authority.0.data}
   name: kubernetes
 contexts:
 - context:

@@ -89,7 +89,7 @@
    kubectl --kubeconfig=~/.kube/eksconfig --insecure-skip-tls-verify apply -f aws/configmap.yaml
    ```
 Ref: 
-- https://www.iheavy.com/2018/07/31/how-to-setup-an-amazon-eks-demo-with-terraform/
+- https://www.iheavy.com/2018/07/31/how-to-setup-an-amazon-eks-eks-1-with-terraform/
 - https://www.terraform.io/docs/providers/aws/r/eks_cluster.html
 - https://www.terraform.io/docs/providers/azurerm/r/kubernetes_cluster.html#service_principal
 - https://www.hashicorp.com/blog/hashicorp-announces-terraform-support-aws-kubernetes/

@@ -8,9 +8,8 @@
 #  * AutoScaling Group to launch worker instances
 #
 
-resource "aws_iam_role" "demo-node" {
-  provider = "aws.eks"
-  name = "terraform-eks-demo-node"
+resource "aws_iam_role" "eks1-node" {
+  name = "terraform-eks-eks1-node"
 
   assume_role_policy = <<POLICY
 {
@@ -29,35 +28,30 @@ POLICY
 }
 
 
-resource "aws_iam_role_policy_attachment" "demo-node-AmazonEKSWorkerNodePolicy" {
-  provider = "aws.eks"
+resource "aws_iam_role_policy_attachment" "eks1-node-AmazonEKSWorkerNodePolicy" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy"
-  role       = "${aws_iam_role.demo-node.name}"
+  role       =  aws_iam_role.eks1-node.name
 }
 
-resource "aws_iam_role_policy_attachment" "demo-node-AmazonEKS_CNI_Policy" {
-  provider = "aws.eks"
+resource "aws_iam_role_policy_attachment" "eks1-node-AmazonEKS_CNI_Policy" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy"
-  role       = "${aws_iam_role.demo-node.name}"
+  role       = aws_iam_role.eks1-node.name
 }
 
-resource "aws_iam_role_policy_attachment" "demo-node-AmazonEC2ContainerRegistryReadOnly" {
-  provider = "aws.eks"
+resource "aws_iam_role_policy_attachment" "eks1-node-AmazonEC2ContainerRegistryReadOnly" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
-  role       = "${aws_iam_role.demo-node.name}"
+  role       = aws_iam_role.eks1-node.name
 }
 
-resource "aws_iam_instance_profile" "demo-node" {
-  provider = "aws.eks"
-  name = "terraform-eks-demo"
-  role = "${aws_iam_role.demo-node.name}"
+resource "aws_iam_instance_profile" "eks1-node" {
+  name = "terraform-eks-eks-1"
+  role = aws_iam_role.eks1-node.name
 }
 
-resource "aws_security_group" "demo-node" {
-  provider = "aws.eks"
-  name        = "terraform-eks-demo-node"
+resource "aws_security_group" "eks1-node" {
+  name        = "terraform-eks-eks1-node"
   description = "Security group for all nodes in the cluster"
-  vpc_id = "${var.vpc_id}"
+  vpc_id = var.vpc_id
 
   egress {
     from_port   = 0
@@ -66,38 +60,33 @@ resource "aws_security_group" "demo-node" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  tags = "${
-    map(
-     "Name", "terraform-eks-demo-node",
+  tags = map(
+     "Name", "terraform-eks-eks1-node",
      "kubernetes.io/cluster/${var.cluster_name}", "owned",
     )
-  }"
 }
 
-resource "aws_security_group_rule" "demo-node-ingress-self" {
-  provider = "aws.eks"
+resource "aws_security_group_rule" "eks1-node-ingress-self" {
   description              = "Allow node to communicate with each other"
   from_port                = 0
   protocol                 = "-1"
-  security_group_id        = "${aws_security_group.demo-node.id}"
-  source_security_group_id = "${aws_security_group.demo-node.id}"
+  security_group_id        = aws_security_group.eks1-node.id
+  source_security_group_id = aws_security_group.eks1-node.id
   to_port                  = 65535
   type                     = "ingress"
 }
 
-resource "aws_security_group_rule" "demo-node-ingress-cluster" {
-  provider = "aws.eks"
+resource "aws_security_group_rule" "eks1-node-ingress-cluster" {
   description              = "Allow worker Kubelets and pods to receive communication from the cluster control plane"
   from_port                = 1025
   protocol                 = "tcp"
-  security_group_id        = "${aws_security_group.demo-node.id}"
-  source_security_group_id = "${aws_security_group.eks-sg.id}"
+  security_group_id        = aws_security_group.eks1-node.id
+  source_security_group_id = aws_security_group.eks-sg.id
   to_port                  = 65535
   type                     = "ingress"
 }
 
 data "aws_ami" "eks-worker" {
-  provider = "aws.eks"
   filter {
     name   = "name"
     values = ["amazon-eks-node-1.14-*"]
@@ -114,7 +103,7 @@ data "aws_ami" "eks-worker" {
 # information into the AutoScaling Launch Configuration.
 # More information: https://amazon-eks.s3-us-west-2.amazonaws.com/1.10.3/2018-06-05/amazon-eks-nodegroup.yaml
 locals {
-  demo-node-userdata = <<USERDATA
+  eks1-node-userdata = <<USERDATA
 #!/bin/bash -xe
 /etc/eks/bootstrap.sh ${var.cluster_name}
 mkdir -p /etc/cni/net.d/
@@ -141,16 +130,14 @@ systemctl start kubelet
 USERDATA
 }
 
-resource "aws_launch_configuration" "demo" {
-  provider = "aws.eks"
-  associate_public_ip_address = true
-  iam_instance_profile        = "${aws_iam_instance_profile.demo-node.name}"
-  image_id                    = "${data.aws_ami.eks-worker.id}"
+resource "aws_launch_configuration" "eks-1" {
+  iam_instance_profile        = aws_iam_instance_profile.eks1-node.name
+  image_id                    = data.aws_ami.eks-worker.id
   instance_type               = "m4.large"
-  name_prefix                 = "terraform-eks-demo"
-  key_name                    = "${var.key_name}"
-  security_groups             = ["${aws_security_group.demo-node.id}"]
-  user_data_base64            = "${base64encode(local.demo-node-userdata)}"
+  name_prefix                 = "terraform-eks-eks-1"
+  key_name                    = var.key_name
+  security_groups             = ["${aws_security_group.eks1-node.id}"]
+  user_data_base64            = base64encode(local.eks1-node-userdata)
   associate_public_ip_address = false
 
   lifecycle {
@@ -158,15 +145,14 @@ resource "aws_launch_configuration" "demo" {
   }
 }
 
-resource "aws_autoscaling_group" "demo" {
-  provider = "aws.eks"
+resource "aws_autoscaling_group" "eks-1" {
   desired_capacity     = 2
-  launch_configuration = "${aws_launch_configuration.demo.id}"
+  launch_configuration = aws_launch_configuration.eks-1.id
   max_size             = 2
   min_size             = 1
-  name                 = "terraform-eks-demo"
+  name                 = "terraform-eks-eks-1"
 
-  vpc_zone_identifier = ["${data.aws_subnet_ids.private.ids}"]
+  vpc_zone_identifier = data.aws_subnet_ids.private.ids
 
   tag {
     key                 = "Name"
